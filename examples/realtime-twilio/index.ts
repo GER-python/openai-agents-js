@@ -81,12 +81,17 @@ fastify.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
 fastify.all(
   '/incoming-call',
   async (request: FastifyRequest, reply: FastifyReply) => {
+    const host = request.headers.host ?? '';
+    if (!/^[a-zA-Z0-9._:-]+$/.test(host)) {
+      reply.status(400).send('Invalid Host header');
+      return;
+    }
     const twimlResponse = `
 <?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say>O.K. you can start talking!</Say>
     <Connect>
-        <Stream url="wss://${request.headers.host}/media-stream" />
+        <Stream url="wss://${host}/media-stream" />
     </Connect>
 </Response>`.trim();
     reply.type('text/xml').send(twimlResponse);
