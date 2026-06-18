@@ -24,6 +24,7 @@ import {
   parseRealtimeEvent,
   responseDoneEventSchema,
 } from './openaiRealtimeEvents';
+import { ResponseCreateSequencer } from './responseCreateSequencer';
 import {
   ApiKey,
   RealtimeTransportLayer,
@@ -124,6 +125,10 @@ export abstract class OpenAIRealtimeBase
   #apiKey: ApiKey | undefined;
   #tracingConfig: RealtimeTracingConfig | null = null;
   #rawSessionConfig: Record<string, any> | null = null;
+  #responseCreateSequencer = new ResponseCreateSequencer(
+    (event) => this._sendRawEvent(event),
+    (error) => this._onError(error),
+  );
 
   protected eventEmitter: RuntimeEventEmitter<OpenAIRealtimeEventTypes> =
     new RuntimeEventEmitter<OpenAIRealtimeEventTypes>();
@@ -159,7 +164,32 @@ export abstract class OpenAIRealtimeBase
     options: RealtimeTransportLayerConnectOptions,
   ): Promise<void>;
 
-  abstract sendEvent(event: RealtimeClientMessage): void;
+  /**
+   * Low-level transport send. Subclasses implement this to write a serialized
+   * event onto the underlying transport (WebSocket, DataChannel, etc.).
+   */
+  protected abstract _sendRawEvent(event: RealtimeClientMessage): void;
+
+  /**
+   * Send an event to the Realtime API. `response.create` events are routed
+   * through the internal {@link ResponseCreateSequencer} so that at most one
+   * create request is in-flight at a time. All other event types are forwarded
+   * directly to the transport via {@link _sendRawEvent}.
+   */
+  sendEvent(event: RealtimeClientMessage): void {
+    if (event.type === 'response.create') {
+      this.#responseCreateSequencer.requestResponseCreate(event, {
+        manual: true,
+      });
+      return;
+    }
+
+    if (event.type === 'response.cancel') {
+      this.#responseCreateSequencer.beginCancelResponse();
+    }
+
+    this._sendRawEvent(event);
+  }
 
   abstract mute(muted: boolean): void;
 
@@ -480,11 +510,27 @@ export abstract class OpenAIRealtimeBase
     this.emit('disconnected');
   }
 
+  /**
+   * Request a new model response. The underlying `response.create` is routed
+   * through the {@link ResponseCreateSequencer} so that it waits for any
+   * in-progress response to finish before being dispatched.
+   */
   requestResponse(response?: Record<string, any>): void {
-    this.sendEvent({
-      type: 'response.create',
-      ...(response ? { response } : {}),
-    });
+    this.#responseCreateSequencer.requestResponseCreate(
+      {
+        type: 'response.create',
+        ...(response ? { response } : {}),
+      },
+      { manual: response !== undefined },
+    );
+  }
+
+  /**
+   * Access the internal sequencer. Subclasses may need this for
+   * transport-specific event handling (e.g. marking response lifecycle).
+   */
+  protected get _responseCreateSequencer(): ResponseCreateSequencer {
+    return this.#responseCreateSequencer;
   }
 
   /**

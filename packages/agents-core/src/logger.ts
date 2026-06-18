@@ -59,6 +59,28 @@ export function getLogger(namespace: string = 'openai-agents'): Logger {
   };
 }
 
+/**
+ * Log a debug message, optionally including detailed model data only when
+ * model data logging is enabled.
+ *
+ * @param log - The logger instance to use.
+ * @param summary - A short message logged unconditionally (e.g. "Calling LLM").
+ * @param detailFn - A function returning the detailed string to append when
+ *   model data logging is enabled. Deferred so serialisation cost is skipped
+ *   when unnecessary.
+ */
+export function debugMaybeData(
+  log: Logger,
+  summary: string,
+  detailFn: () => string,
+): void {
+  if (log.dontLogModelData) {
+    log.debug(summary);
+  } else {
+    log.debug(`${summary} ${detailFn()}`);
+  }
+}
+
 export const logger = getLogger('openai-agents:core');
 
 export default logger;

@@ -13,7 +13,6 @@ import {
   OpenAIRealtimeBase,
   OpenAIRealtimeBaseOptions,
 } from './openaiRealtimeBase';
-import { ResponseCreateSequencer } from './responseCreateSequencer';
 import { base64ToArrayBuffer, HEADERS, WEBSOCKET_META } from './utils';
 import { UserError } from '@openai/agents-core';
 import { TransportLayerAudio } from './transportLayerEvents';
@@ -105,10 +104,6 @@ export class OpenAIRealtimeWebSocket
   protected _audioLengthMs: number = 0;
   #createWebSocket?: (options: CreateWebSocketOptions) => Promise<WebSocket>;
   #skipOpenEventListeners?: boolean;
-  #responseCreateSequencer = new ResponseCreateSequencer(
-    (event) => this.#sendEventNow(event),
-    (error) => this._onError(error),
-  );
   #resetAudioPlaybackState() {
     this.#currentItemId = undefined;
     this._firstAudioTimestamp = undefined;
@@ -265,7 +260,7 @@ export class OpenAIRealtimeWebSocket
       }
 
       if (parsed.type === 'error') {
-        this.#responseCreateSequencer.handleResponseCreateError(parsed);
+        this._responseCreateSequencer.handleResponseCreateError(parsed);
       }
 
       if (parsed.type === 'response.output_audio.delta') {
@@ -320,9 +315,9 @@ export class OpenAIRealtimeWebSocket
             ?.interrupt_response ?? false;
         this.interrupt(!automaticResponseCancellationEnabled);
       } else if (parsed.type === 'response.created') {
-        this.#responseCreateSequencer.markResponseCreated();
+        this._responseCreateSequencer.markResponseCreated();
       } else if (parsed.type === 'response.done') {
-        this.#responseCreateSequencer.markResponseDone();
+        this._responseCreateSequencer.markResponseDone();
       } else if (parsed.type === 'session.created') {
         this._tracingConfig = parsed.session.tracing;
         // Trying to turn on tracing after the session is created
@@ -339,7 +334,7 @@ export class OpenAIRealtimeWebSocket
         status: 'disconnected',
         websocket: undefined,
       };
-      this.#responseCreateSequencer.releaseWaiters();
+      this._responseCreateSequencer.releaseWaiters();
       this.emit('connection_change', this.#state.status);
       this._onClose();
     });
@@ -376,46 +371,12 @@ export class OpenAIRealtimeWebSocket
   }
 
   /**
-   * Send an event to the Realtime API. This will stringify the event and send it directly to the
-   * API. This can be used if you want to take control over the connection and send events manually.
-   *
-   * @param event - The event to send.
-   */
-  sendEvent(event: RealtimeClientMessage): void {
-    this.#assertConnected();
-
-    if (event.type === 'response.create') {
-      this.#responseCreateSequencer.requestResponseCreate(event, {
-        manual: true,
-      });
-      return;
-    }
-
-    if (event.type === 'response.cancel') {
-      this.#responseCreateSequencer.beginCancelResponse();
-    }
-
-    this.#sendEventNow(event);
-  }
-
-  override requestResponse(response?: Record<string, any>): void {
-    this.#assertConnected();
-    this.#responseCreateSequencer.requestResponseCreate(
-      {
-        type: 'response.create',
-        ...(response ? { response } : {}),
-      },
-      { manual: response !== undefined },
-    );
-  }
-
-  /**
    * Close the WebSocket connection.
    *
    * This will also reset any internal connection tracking used for interruption handling.
    */
   close() {
-    this.#responseCreateSequencer.releaseWaiters();
+    this._responseCreateSequencer.releaseWaiters();
     this.#state.websocket?.close();
     this.#currentItemId = undefined;
     this._firstAudioTimestamp = undefined;
@@ -450,8 +411,8 @@ export class OpenAIRealtimeWebSocket
    *  response that the model is currently generating.
    */
   _cancelResponse() {
-    if (this.#responseCreateSequencer.beginCancelResponse()) {
-      this.#sendEventNow({
+    if (this._responseCreateSequencer.beginCancelResponse()) {
+      this._sendRawEvent({
         type: 'response.cancel',
       });
     }
@@ -519,7 +480,7 @@ export class OpenAIRealtimeWebSocket
     }
   }
 
-  #sendEventNow(event: RealtimeClientMessage): void {
+  protected _sendRawEvent(event: RealtimeClientMessage): void {
     this.#assertConnected();
     this.#state.websocket!.send(JSON.stringify(event));
   }

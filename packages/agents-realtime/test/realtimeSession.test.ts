@@ -1490,7 +1490,7 @@ describe('RealtimeSession', () => {
       status: 'connected' | 'disconnected' | 'connecting' | 'disconnecting' =
         'connected';
       connect = vi.fn(async () => {});
-      sendEvent = vi.fn();
+      protected _sendRawEvent = vi.fn();
       mute = vi.fn();
       close = vi.fn();
       interrupt = vi.fn();
@@ -1534,7 +1534,7 @@ describe('RealtimeSession', () => {
       status: 'connected' | 'disconnected' | 'connecting' | 'disconnecting' =
         'connected';
       connect = vi.fn(async () => {});
-      sendEvent = vi.fn();
+      protected _sendRawEvent = vi.fn();
       mute = vi.fn();
       close = vi.fn();
       interrupt = vi.fn();

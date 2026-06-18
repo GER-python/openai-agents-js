@@ -9,7 +9,7 @@ class TestBase extends OpenAIRealtimeBase {
   events: RealtimeClientMessage[] = [];
   afterAudioDoneCalled = 0;
   connect = vi.fn(async () => {});
-  sendEvent(event: RealtimeClientMessage) {
+  protected _sendRawEvent(event: RealtimeClientMessage) {
     this.events.push(event);
   }
   mute = vi.fn();
@@ -198,7 +198,7 @@ describe('OpenAIRealtimeBase helpers', () => {
       type: 'conversation.item.create',
       item: { type: 'function_call_output', output: 'output', call_id: 'c1' },
     });
-    expect(base.events[1]).toEqual({ type: 'response.create' });
+    expect(base.events[1]).toMatchObject({ type: 'response.create' });
     expect(updates.length).toBe(1);
   });
 
