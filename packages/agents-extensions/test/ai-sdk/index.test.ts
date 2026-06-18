@@ -3784,9 +3784,6 @@ describe('AiSdkModel', () => {
       expect(parseArguments(undefined)).toEqual({});
       expect(parseArguments(null)).toEqual({});
       expect(parseArguments('')).toEqual({});
-      expect(parseArguments(' ')).toEqual({});
-      expect(parseArguments('{ ')).toEqual({});
-      expect(parseArguments('foo')).toEqual({});
       expect(parseArguments('{}')).toEqual({});
       expect(parseArguments('{ }')).toEqual({});
 
@@ -3795,6 +3792,13 @@ describe('AiSdkModel', () => {
       expect(parseArguments('[1,2,3]')).toEqual([1, 2, 3]);
       expect(parseArguments('{"a":1}')).toEqual({ a: 1 });
       expect(parseArguments('{"a":1,"b":"c"}')).toEqual({ a: 1, b: 'c' });
+    });
+
+    test('should warn and return {} for invalid JSON', () => {
+      allowConsole(['warn']);
+      expect(parseArguments(' ')).toEqual({});
+      expect(parseArguments('{ ')).toEqual({});
+      expect(parseArguments('foo')).toEqual({});
     });
   });
 

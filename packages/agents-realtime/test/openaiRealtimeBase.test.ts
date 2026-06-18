@@ -202,8 +202,10 @@ describe('OpenAIRealtimeBase helpers', () => {
     expect(updates.length).toBe(1);
   });
 
-  it('sendFunctionCallOutput logs errors when tool call parsing fails', () => {
+  it('sendFunctionCallOutput logs errors and emits error event when tool call parsing fails', () => {
     const base = new TestBase();
+    const errors: any[] = [];
+    base.on('error', (e) => errors.push(e));
     const toolCall = {
       type: 'function_call',
       id: '1',
@@ -215,6 +217,8 @@ describe('OpenAIRealtimeBase helpers', () => {
     base.sendFunctionCallOutput(toolCall, 'output', false);
 
     expect(logger.error).toHaveBeenCalled();
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toEqual({ type: 'error', error: expect.any(Error) });
   });
 
   it('sendAudio optionally commits', () => {

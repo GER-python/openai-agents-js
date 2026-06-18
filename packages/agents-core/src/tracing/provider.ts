@@ -172,6 +172,7 @@ export class TraceProvider {
       await this.#multiProcessor.shutdown(timeout);
     } catch (error) {
       logger.error('Error shutting down tracing provider %o', error);
+      throw error;
     }
   }
 
@@ -187,6 +188,9 @@ export class TraceProvider {
 
         try {
           await this.shutdown();
+        } catch {
+          // Errors are already logged inside shutdown(); swallow here to
+          // avoid unhandled rejections during process exit.
         } finally {
           clearTimeout(timeout);
         }

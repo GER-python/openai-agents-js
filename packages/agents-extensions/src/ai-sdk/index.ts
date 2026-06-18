@@ -2119,6 +2119,8 @@ function toTracingUsage(usage: {
   };
 }
 
+const _parseArgsLogger = getLogger('openai-agents:extensions:ai-sdk');
+
 export function parseArguments(args: string | undefined | null): any {
   if (!args) {
     return {};
@@ -2126,7 +2128,10 @@ export function parseArguments(args: string | undefined | null): any {
 
   try {
     return JSON.parse(args);
-  } catch (_) {
+  } catch (error) {
+    _parseArgsLogger.warn(
+      `Failed to parse tool call arguments as JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return {};
   }
 }
