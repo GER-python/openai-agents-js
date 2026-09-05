@@ -6,6 +6,7 @@ import {
   resetCurrentSpan,
   createGenerationSpan,
   setCurrentSpan,
+  debugMaybeData,
 } from '@openai/agents-core';
 import type {
   ModelRetryAdvice,
@@ -18,7 +19,7 @@ import type {
 import OpenAI from 'openai';
 import type { Stream } from 'openai/streaming';
 import logger from './logger';
-import { HEADERS } from './defaults';
+import { HEADERS, isRunnerManagedRetry } from './defaults';
 import { CompletionUsage } from 'openai/resources/completions';
 import type {
   ResponseFormatText,
@@ -388,13 +389,11 @@ export class OpenAIChatCompletionsModel implements Model {
       requestData.response_format = responseFormat;
     }
 
-    if (logger.dontLogModelData) {
-      logger.debug('Calling LLM');
-    } else {
-      logger.debug(
-        `Calling LLM. Request data: ${JSON.stringify(requestData, null, 2)}`,
-      );
-    }
+    debugMaybeData(
+      logger,
+      'Calling LLM.',
+      () => `Request data: ${JSON.stringify(requestData, null, 2)}`,
+    );
 
     const requestOptions: {
       headers: typeof HEADERS;
@@ -404,13 +403,7 @@ export class OpenAIChatCompletionsModel implements Model {
       headers: HEADERS,
       signal: request.signal,
     };
-    if (
-      (
-        request as ModelRequest & {
-          _internal?: { runnerManagedRetry?: boolean };
-        }
-      )._internal?.runnerManagedRetry === true
-    ) {
+    if (isRunnerManagedRetry(request)) {
       requestOptions.maxRetries = 0;
     }
 
@@ -419,11 +412,9 @@ export class OpenAIChatCompletionsModel implements Model {
       requestOptions,
     );
 
-    if (logger.dontLogModelData) {
-      logger.debug('Response received');
-    } else {
-      logger.debug(`Response received: ${JSON.stringify(completion, null, 2)}`);
-    }
+    debugMaybeData(logger, 'Response received.', () =>
+      JSON.stringify(completion, null, 2),
+    );
     return completion;
   }
 }

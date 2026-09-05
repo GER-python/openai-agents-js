@@ -14,7 +14,6 @@ import {
   OpenAIRealtimeBaseOptions,
 } from './openaiRealtimeBase';
 import { parseRealtimeEvent } from './openaiRealtimeEvents';
-import { ResponseCreateSequencer } from './responseCreateSequencer';
 import { HEADERS } from './utils';
 
 /**
@@ -99,10 +98,6 @@ export class OpenAIRealtimeWebRTC
   #muted = false;
   #connectPromise: Promise<void> | undefined;
   #connectAttemptId = 0;
-  #responseCreateSequencer = new ResponseCreateSequencer(
-    (event) => this.#sendEventNow(event),
-    (error) => this._onError(error),
-  );
 
   constructor(private readonly options: OpenAIRealtimeWebRTCOptions = {}) {
     if (typeof RTCPeerConnection === 'undefined') {
@@ -300,15 +295,15 @@ export class OpenAIRealtimeWebRTC
             }
 
             if (parsed.type === 'error') {
-              this.#responseCreateSequencer.handleResponseCreateError(parsed);
+              this._responseCreateSequencer.handleResponseCreateError(parsed);
             }
 
             if (parsed.type === 'response.created') {
               this.#cancelOngoingResponse = true;
-              this.#responseCreateSequencer.markResponseCreated();
+              this._responseCreateSequencer.markResponseCreated();
             } else if (parsed.type === 'response.done') {
               this.#cancelOngoingResponse = false;
-              this.#responseCreateSequencer.markResponseDone();
+              this._responseCreateSequencer.markResponseDone();
             }
 
             if (parsed.type === 'session.created') {
@@ -399,40 +394,6 @@ export class OpenAIRealtimeWebRTC
     return this.#connectPromise;
   }
 
-  /**
-   * Send an event to the Realtime API. This will stringify the event and send it directly to the
-   * API. This can be used if you want to take control over the connection and send events manually.
-   *
-   * @param event - The event to send.
-   */
-  sendEvent(event: RealtimeClientMessage): void {
-    this.#assertConnected();
-
-    if (event.type === 'response.create') {
-      this.#responseCreateSequencer.requestResponseCreate(event, {
-        manual: true,
-      });
-      return;
-    }
-
-    if (event.type === 'response.cancel') {
-      this.#responseCreateSequencer.beginCancelResponse();
-    }
-
-    this.#sendEventNow(event);
-  }
-
-  override requestResponse(response?: Record<string, any>): void {
-    this.#assertConnected();
-    this.#responseCreateSequencer.requestResponseCreate(
-      {
-        type: 'response.create',
-        ...(response ? { response } : {}),
-      },
-      { manual: response !== undefined },
-    );
-  }
-
   #assertConnected(): void {
     if (
       !this.#state.dataChannel ||
@@ -444,7 +405,7 @@ export class OpenAIRealtimeWebRTC
     }
   }
 
-  #sendEventNow(event: RealtimeClientMessage): void {
+  protected _sendRawEvent(event: RealtimeClientMessage): void {
     this.#assertConnected();
     this.#state.dataChannel!.send(JSON.stringify(event));
   }
@@ -473,7 +434,7 @@ export class OpenAIRealtimeWebRTC
    * Close the connection to the Realtime API and disconnects the underlying WebRTC connection.
    */
   close() {
-    this.#responseCreateSequencer.releaseWaiters();
+    this._responseCreateSequencer.releaseWaiters();
     this.#cancelOngoingResponse = false;
     if (this.#state.dataChannel) {
       this.#state.dataChannel.close();
@@ -507,15 +468,15 @@ export class OpenAIRealtimeWebRTC
   interrupt() {
     if (
       this.#cancelOngoingResponse &&
-      this.#responseCreateSequencer.beginCancelResponse()
+      this._responseCreateSequencer.beginCancelResponse()
     ) {
-      this.#sendEventNow({
+      this._sendRawEvent({
         type: 'response.cancel',
       });
       this.#cancelOngoingResponse = false;
     }
 
-    this.#sendEventNow({
+    this._sendRawEvent({
       type: 'output_audio_buffer.clear',
     });
   }

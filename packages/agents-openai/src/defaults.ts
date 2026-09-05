@@ -59,3 +59,14 @@ export function getDefaultOpenAIWebSocketBaseURL(): string | undefined {
 export const HEADERS = {
   'User-Agent': `Agents/JavaScript ${METADATA.version}`,
 };
+
+/**
+ * Returns true when the runner is managing retries for this request,
+ * meaning the SDK client should not perform its own retries.
+ */
+export function isRunnerManagedRetry(request: Record<string, any>): boolean {
+  return (
+    (request as { _internal?: { runnerManagedRetry?: boolean } })._internal
+      ?.runnerManagedRetry === true
+  );
+}

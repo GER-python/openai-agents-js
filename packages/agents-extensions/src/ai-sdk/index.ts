@@ -30,6 +30,7 @@ import {
   UserError,
   withGenerationSpan,
   getLogger,
+  debugMaybeData,
   ModelSettingsToolChoice,
 } from '@openai/agents';
 import {
@@ -1491,11 +1492,9 @@ export class AiSdkModel implements Model {
           ...(request.modelSettings.providerData ?? {}),
         };
 
-        if (this.#logger.dontLogModelData) {
-          this.#logger.debug('Request sent');
-        } else {
-          this.#logger.debug('Request:', JSON.stringify(aiSdkRequest, null, 2));
-        }
+        debugMaybeData(this.#logger, 'Request sent.', () =>
+          JSON.stringify(aiSdkRequest, null, 2),
+        );
 
         const result = await this.#model.doGenerate(aiSdkRequest);
         const baseProviderData = buildBaseProviderData(
@@ -1602,11 +1601,9 @@ export class AiSdkModel implements Model {
           span.spanData.usage = toTracingUsage(usage);
         }
 
-        if (this.#logger.dontLogModelData) {
-          this.#logger.debug('Response ready');
-        } else {
-          this.#logger.debug('Response:', JSON.stringify(response, null, 2));
-        }
+        debugMaybeData(this.#logger, 'Response ready.', () =>
+          JSON.stringify(response, null, 2),
+        );
 
         return response;
       } catch (error) {
@@ -1729,14 +1726,9 @@ export class AiSdkModel implements Model {
       };
       const requestedToolsByName = buildRequestedToolsByName(request);
 
-      if (this.#logger.dontLogModelData) {
-        this.#logger.debug('Request received (streamed)');
-      } else {
-        this.#logger.debug(
-          'Request (streamed):',
-          JSON.stringify(aiSdkRequest, null, 2),
-        );
-      }
+      debugMaybeData(this.#logger, 'Request received (streamed).', () =>
+        JSON.stringify(aiSdkRequest, null, 2),
+      );
 
       const { stream } = await this.#model.doStream(aiSdkRequest);
       const baseProviderData = buildBaseProviderData(this.#model);
@@ -1936,14 +1928,9 @@ export class AiSdkModel implements Model {
         });
       }
 
-      if (this.#logger.dontLogModelData) {
-        this.#logger.debug('Response ready (streamed)');
-      } else {
-        this.#logger.debug(
-          'Response (streamed):',
-          JSON.stringify(finalEvent.response, null, 2),
-        );
-      }
+      debugMaybeData(this.#logger, 'Response ready (streamed).', () =>
+        JSON.stringify(finalEvent.response, null, 2),
+      );
 
       yield finalEvent;
     } catch (error) {

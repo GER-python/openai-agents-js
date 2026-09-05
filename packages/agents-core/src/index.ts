@@ -98,7 +98,7 @@ export {
   RunToolSearchOutputItem,
 } from './items';
 export { AgentHooks } from './lifecycle';
-export { getLogger } from './logger';
+export { getLogger, debugMaybeData } from './logger';
 export { applyDiff } from './utils/applyDiff';
 export {
   getAllMcpTools,

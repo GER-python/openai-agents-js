@@ -19,7 +19,7 @@ class CapturingTransport extends OpenAIRealtimeBase {
     );
   }
 
-  sendEvent(event: RealtimeClientMessage) {
+  protected _sendRawEvent(event: RealtimeClientMessage) {
     this.events.push(event);
   }
 

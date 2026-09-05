@@ -8,6 +8,7 @@ import {
   resetCurrentSpan,
   protocol,
   UserError,
+  debugMaybeData,
 } from '@openai/agents-core';
 import type {
   ModelRetryAdvice,
@@ -30,7 +31,7 @@ import {
   ToolChoiceTypes,
 } from 'openai/resources/responses/responses';
 import { z } from 'zod';
-import { HEADERS } from './defaults';
+import { HEADERS, isRunnerManagedRetry } from './defaults';
 import {
   ResponsesWebSocketConnection,
   ResponsesWebSocketInternalError,
@@ -2881,13 +2882,7 @@ export class OpenAIResponsesModel implements Model {
         ? { query: builtRequest.transportExtraQuery }
         : {}),
     };
-    if (
-      (
-        request as ModelRequest & {
-          _internal?: { runnerManagedRetry?: boolean };
-        }
-      )._internal?.runnerManagedRetry === true
-    ) {
+    if (isRunnerManagedRetry(request)) {
       requestOptions.maxRetries = 0;
     }
     const responsePromise = this._client.responses.create(
@@ -2915,11 +2910,9 @@ export class OpenAIResponsesModel implements Model {
       response = (await responsePromise) as OpenAI.Responses.Response;
     }
 
-    if (logger.dontLogModelData) {
-      logger.debug('Response received');
-    } else {
-      logger.debug(`Response received: ${JSON.stringify(response, null, 2)}`);
-    }
+    debugMaybeData(logger, 'Response received.', () =>
+      JSON.stringify(response, null, 2),
+    );
 
     return response;
   }
@@ -3052,17 +3045,12 @@ export class OpenAIResponsesModel implements Model {
       transportExtraQuery: transportOverrides.extraQuery,
     };
 
-    if (logger.dontLogModelData) {
-      logger.debug('Calling LLM');
-    } else {
-      logger.debug(
-        `Calling LLM. Request data: ${JSON.stringify(
-          builtRequest.requestData,
-          null,
-          2,
-        )}`,
-      );
-    }
+    debugMaybeData(
+      logger,
+      'Calling LLM.',
+      () =>
+        `Request data: ${JSON.stringify(builtRequest.requestData, null, 2)}`,
+    );
     return builtRequest;
   }
 
