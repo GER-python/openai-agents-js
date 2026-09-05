@@ -303,8 +303,22 @@ export class MCPServers {
   }
 
   private async closeAll(): Promise<void> {
+    const closeErrors: { server: MCPServer; error: Error }[] = [];
     for (const server of [...this.allServers].reverse()) {
+      const hadError = this.errorsByServer.has(server);
       await this.closeServer(server);
+      if (!hadError && this.errorsByServer.has(server)) {
+        closeErrors.push({
+          server,
+          error: this.errorsByServer.get(server)!,
+        });
+      }
+    }
+    if (closeErrors.length > 0) {
+      const names = closeErrors.map((e) => e.server.name).join(', ');
+      logger.warn(
+        `Failed to close ${closeErrors.length} MCP server(s): ${names}. Check session.errors for details.`,
+      );
     }
   }
 

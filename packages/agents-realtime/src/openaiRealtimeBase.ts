@@ -858,6 +858,7 @@ export abstract class OpenAIRealtimeBase
       this.emit('item_update', item);
     } catch (error) {
       logger.error('Error parsing tool call item', error, toolCall);
+      this.emit('error', { type: 'error', error });
     }
 
     if (startResponse) {

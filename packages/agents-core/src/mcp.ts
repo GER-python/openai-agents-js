@@ -828,7 +828,9 @@ export function mcpToFunctionTool(
         errorFunction,
       });
     } catch (e) {
-      globalLogger.warn(`Error converting MCP schema to strict mode: ${e}`);
+      globalLogger.warn(
+        `Error converting MCP tool '${mcpTool.name}' schema to strict mode, falling back to non-strict: ${e}`,
+      );
     }
   }
 
